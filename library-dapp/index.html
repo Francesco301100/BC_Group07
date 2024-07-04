@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Library System</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.3.0/dist/web3.min.js"></script>
+</head>
+<body>
+  <h1>Library System</h1>
+  <button onclick="connectWallet()">Connect Wallet</button>
+  <div id="account"></div>
+  <h2>Add Book</h2>
+  <input type="text" id="title" placeholder="Title">
+  <input type="text" id="author" placeholder="Author">
+  <input type="number" id="price" placeholder="Price">
+  <button onclick="addBook()">Add Book</button>
+  <h2>Borrow Book</h2>
+  <input type="number" id="borrowBookId" placeholder="Book ID">
+  <button onclick="borrowBook()">Borrow Book</button>
+  <h2>Buy Book</h2>
+  <input type="number" id="buyBookId" placeholder="Book ID">
+  <input type="number" id="buyBookPrice" placeholder="Price">
+  <button onclick="buyBook()">Buy Book</button>
+  <script>
+    let web3;
+    let librarySystem;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        await window.ethereum.enable();
+        const accounts = await web3.eth.getAccounts();
+        document.getElementById('account').innerText = "Connected account: " + accounts[0];
+        librarySystem = new web3.eth.Contract([
+          {
+            "constant": false,
+            "inputs": [
+              { "name": "_title", "type": "string" },
+              { "name": "_author", "type": "string" },
+              { "name": "_price", "type": "uint256" }
+            ],
+            "name": "addBook",
+            "outputs": [],
+            "payable": false,
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "constant": false,
+            "inputs": [
+              { "name": "_id", "type": "uint256" }
+            ],
+            "name": "borrowBook",
+            "outputs": [],
+            "payable": false,
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "constant": false,
+            "inputs": [
+              { "name": "_id", "type": "uint256" }
+            ],
+            "name": "buyBook",
+            "outputs": [],
+            "payable": true,
+            "stateMutability": "payable",
+            "type": "function"
+          }
+        ], 'CONTRACT_ADDRESS');
+      } else {
+        alert('MetaMask not detected');
+      }
+    }
+
+    async function addBook() {
+      const title = document.getElementById('title').value;
+      const author = document.getElementById('author').value;
+      const price = document.getElementById('price').value;
+      const accounts = await web3.eth.getAccounts();
+      await librarySystem.methods.addBook(title, author, price).send({ from: accounts[0] });
+    }
+
+    async function borrowBook() {
+      const bookId = document.getElementById('borrowBookId').value;
+      const accounts = await web3.eth.getAccounts();
+      await librarySystem.methods.borrowBook(bookId).send({ from: accounts[0] });
+    }
+
+    async function buyBook() {
+      const bookId = document.getElementById('buyBookId').value;
+      const price = document.getElementById('buyBookPrice').value;
+      const accounts = await web3.eth.getAccounts();
+      await librarySystem.methods.buyBook(bookId).send({ from: accounts[0], value: web3.utils.toWei(price, 'ether') });
+    }
+  </script>
+</body>
+</html>
