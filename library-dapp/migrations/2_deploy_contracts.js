@@ -1,5 +1,5 @@
-const Library = artifacts.require("Library");
+const LibrarySystem = artifacts.require("LibrarySystem");
 
 module.exports = function (deployer) {
-  deployer.deploy(Library);
+    deployer.deploy(LibrarySystem);
 };
