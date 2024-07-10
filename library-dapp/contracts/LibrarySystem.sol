@@ -68,6 +68,9 @@ contract LibrarySystem {
         for (uint i = 0; i < books[_id].borrowers.length; i++) {
             if (books[_id].borrowers[i] == msg.sender) {
                 isBorrower = true;
+                // Remove borrower from the list
+                books[_id].borrowers[i] = books[_id].borrowers[books[_id].borrowers.length - 1];
+                books[_id].borrowers.pop();
                 break;
             }
         }

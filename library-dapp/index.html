@@ -127,7 +127,7 @@
   <script>
     let web3;
     let librarySystem;
-    const contractAddress = '0xA75C163c2127e86b7a4f817A1168F61e1a894F97'; 
+    const contractAddress = '0xa99B0773DEDDa9AC9695dA6EBC1a0e3A8B0ff0EC'; 
     const abi = [
       {
         "constant": false,
@@ -254,6 +254,7 @@
     async function loadBooks() {
       try {
         const books = await librarySystem.methods.getBooks().call();
+        const accounts = await web3.eth.getAccounts();
         const bookList = document.getElementById('bookList');
         bookList.innerHTML = '';
         books.forEach(book => {
@@ -269,6 +270,7 @@
             <strong>Owner:</strong> ${book.owner !== '0x0000000000000000000000000000000000000000' ? book.owner : 'Available'}<br />
             ${book.available > 0 ? `<button class="button" onclick="borrowBook(${book.id})">Borrow</button>
             <button class="button" onclick="buyBook(${book.id}, ${book.price})">Buy</button>` : 'Not available'}
+            ${book.borrowers.includes(accounts[0]) ? `<button class="button return-button" onclick="returnBook(${book.id})">Return</button>` : ''}
           `;
           bookList.appendChild(bookItem);
         });
