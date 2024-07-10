@@ -4,34 +4,139 @@
   <title>Library Management System Group07</title>
   <script src="https://cdn.jsdelivr.net/npm/web3@1.3.0/dist/web3.min.js"></script>
   <style>
-    .book-list { list-style-type: none; padding: 0; }
-    .book-item { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      color: #333;
+    }
+    .button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background-color: #45a049;
+    }
+    .form-control {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+    .form-control input {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .book-list {
+      list-style-type: none;
+      padding: 0;
+    }
+    .book-item {
+      background: white;
+      margin: 10px 0;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .book-item strong {
+      font-size: 18px;
+      color: #333;
+    }
+    .book-item button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 5px 2px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    .book-item button:hover {
+      background-color: #0056b3;
+    }
+    .book-item .return-button {
+      background-color: #FF5733;
+    }
+    .book-item .return-button:hover {
+      background-color: #cc4600;
+    }
   </style>
 </head>
 <body>
-  <h1>Library System</h1>
-  <button onclick="connectWallet()">Connect Wallet</button>
-  <button onclick="disconnectWallet()">Disconnect Wallet</button>
-  <div id="account"></div>
-  <h2>Add Book</h2>
-  <input type="text" id="title" placeholder="Title">
-  <input type="text" id="author" placeholder="Author">
-  <input type="number" id="price" placeholder="Price">
-  <button onclick="addBook()">Add Book</button>
-  <h2>Books</h2>
-  <ul id="bookList" class="book-list"></ul>
+  <header>
+    <h1>Library Management System Group07</h1>
+  </header>
+  <div class="container">
+    <button class="button" onclick="connectWallet()">Connect Wallet</button>
+    <button class="button" onclick="disconnectWallet()">Disconnect Wallet</button>
+    <div id="account"></div>
+    <h2>Add Book</h2>
+    <div class="form-control">
+      <input type="text" id="title" placeholder="Title">
+    </div>
+    <div class="form-control">
+      <input type="text" id="author" placeholder="Author">
+    </div>
+    <div class="form-control">
+      <input type="number" id="price" placeholder="Price in €" oninput="convertToEther()">
+    </div>
+    <div class="form-control">
+      <input type="text" id="priceInEth" placeholder="Price in ETH" readonly>
+    </div>
+    <div class="form-control">
+      <input type="number" id="quantity" placeholder="Quantity">
+    </div>
+    <div class="form-control">
+      <input type="text" id="isbn" placeholder="ISBN">
+    </div>
+    <button class="button" onclick="addBook()">Add Book</button>
+    <h2>Books</h2>
+    <ul id="bookList" class="book-list"></ul>
+  </div>
   <script>
     let web3;
     let librarySystem;
-    const contractAddress = '0xcC749039B78eE3031cb5Ec139c558aa2AecFc30c'; // Replace with your contract address
-
+    const contractAddress = '0xA75C163c2127e86b7a4f817A1168F61e1a894F97'; 
     const abi = [
       {
         "constant": false,
         "inputs": [
           { "name": "_title", "type": "string" },
           { "name": "_author", "type": "string" },
-          { "name": "_price", "type": "uint256" }
+          { "name": "_price", "type": "uint256" },
+          { "name": "_quantity", "type": "uint256" },
+          { "name": "_isbn", "type": "string" }
         ],
         "name": "addBook",
         "outputs": [],
@@ -62,6 +167,17 @@
         "type": "function"
       },
       {
+        "constant": false,
+        "inputs": [
+          { "name": "_id", "type": "uint256" }
+        ],
+        "name": "returnBook",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
         "constant": true,
         "inputs": [],
         "name": "getBooks",
@@ -72,8 +188,12 @@
               { "name": "title", "type": "string" },
               { "name": "author", "type": "string" },
               { "name": "price", "type": "uint256" },
-              { "name": "borrower", "type": "address" },
-              { "name": "isAvailable", "type": "bool" }
+              { "name": "quantity", "type": "uint256" },
+              { "name": "isbn", "type": "string" },
+              { "name": "uploader", "type": "address" },
+              { "name": "owner", "type": "address" },
+              { "name": "borrowers", "type": "address[]" },
+              { "name": "available", "type": "uint256" }
             ],
             "name": "",
             "type": "tuple[]"
@@ -110,13 +230,20 @@
     }
 
     async function addBook() {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
       const title = document.getElementById('title').value;
       const author = document.getElementById('author').value;
-      const price = document.getElementById('price').value;
+      const isbn = document.getElementById('isbn').value;
+      const priceInEth = document.getElementById('priceInEth').value;
+      const price = web3.utils.toWei(priceInEth, 'ether');
+      const quantity = document.getElementById('quantity').value;
       const accounts = await web3.eth.getAccounts();
-      console.log('Adding book with details:', { title, author, price, account: accounts[0] });
+      console.log('Adding book with details:', { title, author, price, quantity, isbn, account: accounts[0] });
       try {
-        const result = await librarySystem.methods.addBook(title, author, price).send({ from: accounts[0] });
+        const result = await librarySystem.methods.addBook(title, author, price, quantity, isbn).send({ from: accounts[0] });
         console.log('Transaction successful:', result);
         loadBooks();
       } catch (error) {
@@ -133,10 +260,15 @@
           const bookItem = document.createElement('li');
           bookItem.className = 'book-item';
           bookItem.innerHTML = `
-            <strong>${book.title}</strong> by ${book.author} - ${web3.utils.fromWei(book.price, 'ether')} ETH
-            <br />
-            ${book.isAvailable ? `<button onclick="borrowBook(${book.id})">Borrow</button>
-            <button onclick="buyBook(${book.id}, ${book.price})">Buy</button>` : 'Not available'}
+            <strong>Title:</strong> ${book.title}</strong> <br />
+            <strong>Author:</strong> ${book.author} <br />
+            <strong>ISBN:</strong> ${book.isbn}<br />
+            <strong>Quantity:</strong> ${book.available}/${book.quantity}<br />
+            <strong>Price:</strong> ${web3.utils.fromWei(book.price, 'ether')} ETH <br />
+            <strong>Uploader:</strong> ${book.uploader}<br />
+            <strong>Owner:</strong> ${book.owner !== '0x0000000000000000000000000000000000000000' ? book.owner : 'Available'}<br />
+            ${book.available > 0 ? `<button class="button" onclick="borrowBook(${book.id})">Borrow</button>
+            <button class="button" onclick="buyBook(${book.id}, ${book.price})">Buy</button>` : 'Not available'}
           `;
           bookList.appendChild(bookItem);
         });
@@ -146,6 +278,10 @@
     }
 
     async function borrowBook(id) {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
       const accounts = await web3.eth.getAccounts();
       try {
         const result = await librarySystem.methods.borrowBook(id).send({ from: accounts[0] });
@@ -157,6 +293,10 @@
     }
 
     async function buyBook(id, price) {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
       const accounts = await web3.eth.getAccounts();
       try {
         const result = await librarySystem.methods.buyBook(id).send({ from: accounts[0], value: price });
@@ -164,6 +304,43 @@
         loadBooks();
       } catch (error) {
         console.error('Error buying book:', error);
+      }
+    }
+
+    async function returnBook(id) {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
+      const accounts = await web3.eth.getAccounts();
+      try {
+        const result = await librarySystem.methods.returnBook(id).send({ from: accounts[0] });
+        console.log('Transaction successful:', result);
+        loadBooks();
+      } catch (error) {
+        console.error('Error returning book:', error);
+      }
+    }
+
+    async function convertToEther() {
+      const euroPrice = document.getElementById('price').value;
+      if (!euroPrice) {
+        document.getElementById('priceInEth').value = '';
+        return;
+      }
+      const ethPrice = await getEthPrice();
+      const priceInEth = (euroPrice / ethPrice).toFixed(6);
+      document.getElementById('priceInEth').value = priceInEth;
+    }
+
+    async function getEthPrice() {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=eur');
+        const data = await response.json();
+        return data.ethereum.eur;
+      } catch (error) {
+        console.error('Error fetching ETH price:', error);
+        return 0;
       }
     }
   </script>
