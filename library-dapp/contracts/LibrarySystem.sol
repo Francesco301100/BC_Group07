@@ -15,7 +15,15 @@ contract LibrarySystem {
         uint available;
     }
 
+    struct Review {
+        address reviewer;
+        string reviewText;
+        uint rating;
+    }
+
     mapping(uint => Book) public books;
+    mapping(uint => Review[]) public bookReviews;
+    mapping(address => uint[]) public wishlist;
     uint public bookCount;
     address public contractOwner;
 
@@ -32,6 +40,8 @@ contract LibrarySystem {
     event BookBorrowed(uint id, address borrower);
     event BookBought(uint id, address buyer, address previousOwner);
     event BookReturned(uint id, address borrower);
+    event ReviewAdded(uint bookId, address reviewer, string reviewText, uint rating);
+    event BookWishlisted(uint id, address user);
 
     function addBook(string memory _title, string memory _author, uint _price, uint _quantity, string memory _isbn) public {
         bookCount++;
@@ -79,6 +89,28 @@ contract LibrarySystem {
         
         books[_id].available++;
         emit BookReturned(_id, msg.sender);
+    }
+
+    function addReview(uint _id, string memory _reviewText, uint _rating) public {
+        require(_id > 0 && _id <= bookCount, "Invalid book ID");
+        require(_rating > 0 && _rating <= 5, "Rating should be between 1 and 5");
+        
+        bookReviews[_id].push(Review(msg.sender, _reviewText, _rating));
+        emit ReviewAdded(_id, msg.sender, _reviewText, _rating);
+    }
+
+    function getReviews(uint _id) public view returns (Review[] memory) {
+        return bookReviews[_id];
+    }
+
+    function addToWishlist(uint _id) public {
+        require(_id > 0 && _id <= bookCount, "Invalid book ID");
+        wishlist[msg.sender].push(_id);
+        emit BookWishlisted(_id, msg.sender);
+    }
+
+    function getWishlist() public view returns (uint[] memory) {
+        return wishlist[msg.sender];
     }
 
     function getBooks() public view returns (Book[] memory) {

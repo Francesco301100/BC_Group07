@@ -47,11 +47,36 @@
       flex-direction: column;
       margin-bottom: 15px;
     }
-    .form-control input {
+    .form-control input, .form-control textarea {
       padding: 10px;
       font-size: 16px;
       border: 1px solid #ccc;
       border-radius: 4px;
+    }
+    .search-bar {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px 0 0 4px;
+    }
+    .search-bar button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 0 4px 4px 0;
+      transition: background-color 0.3s;
+    }
+    .search-bar button:hover {
+      background-color: #45a049;
     }
     .book-list {
       list-style-type: none;
@@ -69,7 +94,7 @@
       color: #333;
     }
     .book-item button {
-      background-color: #007BFF;
+      background-color: #4CAF50;
       color: white;
       border: none;
       padding: 10px 20px;
@@ -83,13 +108,55 @@
       transition: background-color 0.3s;
     }
     .book-item button:hover {
-      background-color: #0056b3;
+      background-color: #45a049;
     }
     .book-item .return-button {
-      background-color: #FF5733;
+      background-color: #4CAF50;
     }
     .book-item .return-button:hover {
-      background-color: #cc4600;
+      background-color: #45a049;
+    }
+    .review-textarea {
+      width: 100%;
+      height: 100px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      font-size: 16px;
+    }
+    .rating {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-start;
+      padding: 0;
+      margin: 10px 0;
+    }
+    .rating input {
+      display: none;
+    }
+    .rating label {
+      font-size: 30px;
+      color: #ccc;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .rating label:hover,
+    .rating label:hover ~ label,
+    .rating input:checked ~ label {
+      color: #FFD700;
+    }
+    .rating input:checked ~ label,
+    .rating input:checked ~ label ~ label {
+      color: #FFD700;
+    }
+    .rating input:checked ~ label ~ label ~ label,
+    .rating input:checked ~ label ~ label ~ label ~ label {
+      color: #ccc;
+    }
+    .no-results {
+      text-align: center;
+      font-size: 18px;
+      color: #666;
     }
   </style>
 </head>
@@ -122,12 +189,17 @@
     </div>
     <button class="button" onclick="addBook()">Add Book</button>
     <h2>Books</h2>
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="Search by Title, Author, ISBN" oninput="loadBooks()">
+      <button onclick="loadBooks()">Search</button>
+    </div>
     <ul id="bookList" class="book-list"></ul>
+    <div id="noResults" class="no-results" style="display: none;">No books found matching the search criteria.</div>
   </div>
   <script>
     let web3;
     let librarySystem;
-    const contractAddress = '0xa99B0773DEDDa9AC9695dA6EBC1a0e3A8B0ff0EC'; 
+    const contractAddress = '0x4b985691Aa0B4D0136529773d6a0252692d8B6b2'; 
     const abi = [
       {
         "constant": false,
@@ -178,6 +250,40 @@
         "type": "function"
       },
       {
+        "constant": false,
+        "inputs": [
+          { "name": "_id", "type": "uint256" },
+          { "name": "_reviewText", "type": "string" },
+          { "name": "_rating", "type": "uint256" }
+        ],
+        "name": "addReview",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [
+          { "name": "_id", "type": "uint256" }
+        ],
+        "name": "getReviews",
+        "outputs": [
+          {
+            "components": [
+              { "name": "reviewer", "type": "address" },
+              { "name": "reviewText", "type": "string" },
+              { "name": "rating", "type": "uint256" }
+            ],
+            "name": "",
+            "type": "tuple[]"
+          }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "constant": true,
         "inputs": [],
         "name": "getBooks",
@@ -198,6 +304,17 @@
             "name": "",
             "type": "tuple[]"
           }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "getWishlist",
+        "outputs": [
+          { "name": "", "type": "uint256[]" }
         ],
         "payable": false,
         "stateMutability": "view",
@@ -257,7 +374,13 @@
         const accounts = await web3.eth.getAccounts();
         const bookList = document.getElementById('bookList');
         bookList.innerHTML = '';
+        const search = document.getElementById('search').value.toLowerCase();
+        let bookFound = false;
         books.forEach(book => {
+          if (search && !book.title.toLowerCase().includes(search) && !book.author.toLowerCase().includes(search) && !book.isbn.toLowerCase().includes(search)) {
+            return;
+          }
+          bookFound = true;
           const bookItem = document.createElement('li');
           bookItem.className = 'book-item';
           bookItem.innerHTML = `
@@ -271,9 +394,25 @@
             ${book.available > 0 ? `<button class="button" onclick="borrowBook(${book.id})">Borrow</button>
             <button class="button" onclick="buyBook(${book.id}, ${book.price})">Buy</button>` : 'Not available'}
             ${book.borrowers.includes(accounts[0]) ? `<button class="button return-button" onclick="returnBook(${book.id})">Return</button>` : ''}
+            <button class="button" onclick="addToWishlist(${book.id})">Add to Wishlist</button>
+            <div><strong>Reviews:</strong></div>
+            <ul id="reviews-${book.id}"></ul>
+            ${book.borrowers.includes(accounts[0]) || book.owner === accounts[0] ? `
+            <textarea id="reviewText-${book.id}" class="review-textarea" placeholder="Write a review"></textarea>
+            <div class="rating">
+              <input type="radio" id="star5-${book.id}" name="rating-${book.id}" value="5" /><label for="star5-${book.id}" title="5 stars">&#9733;</label>
+              <input type="radio" id="star4-${book.id}" name="rating-${book.id}" value="4" /><label for="star4-${book.id}" title="4 stars">&#9733;</label>
+              <input type="radio" id="star3-${book.id}" name="rating-${book.id}" value="3" /><label for="star3-${book.id}" title="3 stars">&#9733;</label>
+              <input type="radio" id="star2-${book.id}" name="rating-${book.id}" value="2" /><label for="star2-${book.id}" title="2 stars">&#9733;</label>
+              <input type="radio" id="star1-${book.id}" name="rating-${book.id}" value="1" /><label for="star1-${book.id}" title="1 star">&#9733;</label>
+            </div>
+            <button class="button" onclick="addReview(${book.id})">Add Review</button>
+            ` : ''}
           `;
           bookList.appendChild(bookItem);
+          loadReviews(book.id);
         });
+        document.getElementById('noResults').style.display = bookFound ? 'none' : 'block';
       } catch (error) {
         console.error('Error loading books:', error);
       }
@@ -321,6 +460,53 @@
         loadBooks();
       } catch (error) {
         console.error('Error returning book:', error);
+      }
+    }
+
+    async function addReview(bookId) {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
+      const reviewText = document.getElementById(`reviewText-${bookId}`).value;
+      const rating = document.querySelector(`input[name="rating-${bookId}"]:checked`).value;
+      const accounts = await web3.eth.getAccounts();
+      try {
+        const result = await librarySystem.methods.addReview(bookId, reviewText, rating).send({ from: accounts[0] });
+        console.log('Review added:', result);
+        loadBooks();
+      } catch (error) {
+        console.error('Error adding review:', error);
+      }
+    }
+
+    async function loadReviews(bookId) {
+      try {
+        const reviews = await librarySystem.methods.getReviews(bookId).call();
+        const reviewList = document.getElementById(`reviews-${bookId}`);
+        reviewList.innerHTML = '';
+        reviews.forEach(review => {
+          const reviewItem = document.createElement('li');
+          reviewItem.innerText = `${review.reviewText} - Rating: ${review.rating} - By: ${review.reviewer}`;
+          reviewList.appendChild(reviewItem);
+        });
+      } catch (error) {
+        console.error('Error loading reviews:', error);
+      }
+    }
+
+    async function addToWishlist(id) {
+      if (!web3 || !librarySystem) {
+        alert('Wallet is not connected');
+        return;
+      }
+      const accounts = await web3.eth.getAccounts();
+      try {
+        const result = await librarySystem.methods.addToWishlist(id).send({ from: accounts[0] });
+        console.log('Added to wishlist:', result);
+        loadBooks();
+      } catch (error) {
+        console.error('Error adding to wishlist:', error);
       }
     }
 
